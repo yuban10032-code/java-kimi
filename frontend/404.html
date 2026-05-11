@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>页面未找到 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        .error-page {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100dvh;
+            background: var(--gray-light);
+            text-align: center;
+            padding: 20px;
+        }
+        .error-container {
+            max-width: 500px;
+        }
+        .error-code {
+            font-size: 120px;
+            font-weight: 700;
+            color: var(--primary);
+            line-height: 1;
+            margin-bottom: 20px;
+        }
+        .error-icon {
+            font-size: 60px;
+            color: var(--gray);
+            margin-bottom: 20px;
+        }
+        .error-title {
+            font-size: 24px;
+            color: var(--dark);
+            margin-bottom: 10px;
+        }
+        .error-desc {
+            color: var(--gray);
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-page">
+        <div class="error-container">
+            <div class="error-icon"><i class="fas fa-compass"></i></div>
+            <div class="error-code">404</div>
+            <h1 class="error-title">页面未找到</h1>
+            <p class="error-desc">抱歉，您访问的页面不存在或已被移除。</p>
+            <a href="dashboard.html" class="btn btn-primary"><i class="fas fa-home"></i> 返回首页</a>
+        </div>
+    </div>
+</body>
+</html>

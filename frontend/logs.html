@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>操作日志 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>操作日志</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="card">
+                    <div class="card-header"><h3><i class="fas fa-history"></i> 系统操作日志</h3></div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>时间</th>
+                                        <th>用户</th>
+                                        <th>操作</th>
+                                        <th>对象类型</th>
+                                        <th>对象ID</th>
+                                        <th>详情</th>
+                                        <th>IP地址</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logsTable"></tbody>
+                            </table>
+                        </div>
+                        <div class="pagination" id="pagination"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let currentPage = 1;
+        const pageSize = 20;
+
+        async function loadLogs(page = 1) {
+            try {
+                const res = await apiGet(`/logs?page=${page}&limit=${pageSize}`);
+                if (res.success) {
+                    renderTable(res.data);
+                    renderPagination(res.pagination);
+                }
+            } catch (err) {
+                showToast('加载日志失败: ' + err.message, 'error');
+            }
+        }
+
+        function renderTable(logs) {
+            const tbody = document.getElementById('logsTable');
+            if (!logs || logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-inbox"></i><h4>暂无日志</h4></td></tr>`;
+                return;
+            }
+
+            const actionLabels = { CREATE: '创建', UPDATE: '更新', DELETE: '删除', LOGIN: '登录' };
+            const actionClasses = { CREATE: 'badge-success', UPDATE: 'badge-info', DELETE: 'badge-danger', LOGIN: 'badge-warning' };
+
+            tbody.innerHTML = logs.map(l => `
+                <tr>
+                    <td>${formatDateTime(l.created_at)}</td>
+                    <td>${l.display_name || l.username || '-'}</td>
+                    <td><span class="badge ${actionClasses[l.action] || ''}">${actionLabels[l.action] || l.action}</span></td>
+                    <td>${l.target_type || '-'}</td>
+                    <td>${l.target_id || '-'}</td>
+                    <td><pre style="margin: 0; font-size: 11px; background: transparent;">${JSON.stringify(l.details, null, 2)}</pre></td>
+                    <td>${l.ip_address || '-'}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPagination(pagination) {
+            const el = document.getElementById('pagination');
+            if (!pagination || pagination.totalPages <= 1) {
+                el.innerHTML = '';
+                return;
+            }
+            let html = `<button ${pagination.page === 1 ? 'disabled' : ''} onclick="loadLogs(${pagination.page - 1})"><i class="fas fa-chevron-left"></i></button>`;
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                if (i === 1 || i === pagination.totalPages || (i >= pagination.page - 1 && i <= pagination.page + 1)) {
+                    html += `<button class="${i === pagination.page ? 'active' : ''}" onclick="loadLogs(${i})">${i}</button>`;
+                } else if (i === pagination.page - 2 || i === pagination.page + 2) {
+                    html += `<span>...</span>`;
+                }
+            }
+            html += `<button ${pagination.page === pagination.totalPages ? 'disabled' : ''} onclick="loadLogs(${pagination.page + 1})"><i class="fas fa-chevron-right"></i></button>`;
+            el.innerHTML = html;
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', () => loadLogs(currentPage));
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            loadLogs();
+        });
+    </script>
+</body>
+</html>

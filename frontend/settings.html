@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统设置 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>系统设置</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="card">
+                    <div class="card-header"><h3><i class="fas fa-key"></i> 修改密码</h3></div>
+                    <div class="card-body">
+                        <form id="passwordForm">
+                            <div class="form-group">
+                                <label>当前密码</label>
+                                <input type="password" id="currentPassword" required>
+                            </div>
+                            <div class="form-group">
+                                <label>新密码</label>
+                                <input type="password" id="newPassword" required minlength="6">
+                            </div>
+                            <div class="form-group">
+                                <label>确认新密码</label>
+                                <input type="password" id="confirmPassword" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">修改密码</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header"><h3><i class="fas fa-info-circle"></i> 系统信息</h3></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>系统版本</label>
+                                <input type="text" value="1.0.0" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>前端版本</label>
+                                <input type="text" value="1.0.0" disabled>
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>后端API</label>
+                                <input type="text" value="http://localhost:3001" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>数据库</label>
+                                <input type="text" value="PostgreSQL 16" disabled>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header"><h3><i class="fas fa-database"></i> 数据管理</h3></div>
+                    <div class="card-body">
+                        <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                            <a href="export/students" class="btn btn-success"><i class="fas fa-file-export"></i> 导出学生数据</a>
+                            <a href="export/scores" class="btn btn-success"><i class="fas fa-file-export"></i> 导出成绩数据</a>
+                            <a href="import.html" class="btn btn-primary"><i class="fas fa-file-import"></i> 导入数据</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const current = document.getElementById('currentPassword').value;
+            const newPass = document.getElementById('newPassword').value;
+            const confirm = document.getElementById('confirmPassword').value;
+
+            if (newPass !== confirm) {
+                showToast('两次输入的密码不一致', 'error');
+                return;
+            }
+
+            showToast('密码修改功能需要后端API支持', 'warning');
+        });
+
+        window.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

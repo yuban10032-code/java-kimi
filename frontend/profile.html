@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人中心 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>个人中心</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="card">
+                    <div class="card-body" style="text-align: center; padding: 40px;">
+                        <div style="width: 80px; height: 80px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: white; font-size: 32px;">
+                            <i class="fas fa-user"></i>
+                        </div>
+                        <h3 id="profileName" style="margin-bottom: 5px;">-</h3>
+                        <p id="profileRole" style="color: var(--gray);">-</p>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 20px;">
+                    <div class="card-header"><h3>基本信息</h3></div>
+                    <div class="card-body">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>用户名</label>
+                                <input type="text" id="profileUsername" disabled>
+                            </div>
+                            <div class="form-group">
+                                <label>显示名称</label>
+                                <input type="text" id="profileDisplayName">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>邮箱</label>
+                            <input type="email" id="profileEmail">
+                        </div>
+                        <button class="btn btn-primary" id="saveProfileBtn"><i class="fas fa-save"></i> 保存</button>
+                        <a href="settings.html" class="btn btn-secondary"><i class="fas fa-cog"></i> 系统设置</a>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        function loadProfile() {
+            const user = getUser();
+            if (user) {
+                document.getElementById('profileName').textContent = user.displayName || user.username;
+                document.getElementById('profileRole').textContent = user.role === 'admin' ? '系统管理员' : '教师';
+                document.getElementById('profileUsername').value = user.username;
+                document.getElementById('profileDisplayName').value = user.displayName || '';
+            }
+        }
+
+        document.getElementById('saveProfileBtn').addEventListener('click', () => {
+            showToast('个人资料更新功能开发中', 'warning');
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            loadProfile();
+        });
+    </script>
+</body>
+</html>

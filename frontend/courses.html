@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课程管理 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>课程管理</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="card">
+                    <div class="card-header"><h3><i class="fas fa-book"></i> 课程列表</h3></div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>课程代码</th><th>课程名称</th><th>操作</th></tr>
+                                </thead>
+                                <tbody id="coursesTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="courseStatsCard" class="card" style="margin-top: 20px; display: none;">
+                    <div class="card-header">
+                        <h3><i class="fas fa-chart-bar"></i> <span id="statsCourseName"></span> - 成绩统计</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid" style="grid-template-columns: repeat(5, 1fr); margin-bottom: 20px;">
+                            <div class="stat-card">
+                                <div class="stat-info"><h4 id="statTotal">-</h4><p>参考人数</p></div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-info"><h4 id="statAvg">-</h4><p>平均分</p></div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-info"><h4 id="statMax">-</h4><p>最高分</p></div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-info"><h4 id="statMin">-</h4><p>最低分</p></div>
+                            </div>
+                            <div class="stat-card">
+                                <div class="stat-info"><h4 id="statPass">-</h4><p>及格率</p></div>
+                            </div>
+                        </div>
+                        <div class="chart-container" style="height: 250px;">
+                            <canvas id="gradeDistChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/charts.js"></script>
+    <script>
+        async function loadCourses() {
+            try {
+                const res = await apiGet('/courses');
+                if (res.success) {
+                    const tbody = document.getElementById('coursesTable');
+                    tbody.innerHTML = res.data.map(c => `
+                        <tr>
+                            <td>${c.course_code || '-'}</td>
+                            <td><strong>${c.course_name}</strong></td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="showCourseStats('${c.course_name}')">
+                                    <i class="fas fa-chart-bar"></i> 统计
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                showToast('加载课程列表失败: ' + err.message, 'error');
+            }
+        }
+
+        async function showCourseStats(courseName) {
+            try {
+                const res = await apiGet(`/courses/stats/${encodeURIComponent(courseName)}`);
+                if (res.success) {
+                    document.getElementById('courseStatsCard').style.display = 'block';
+                    document.getElementById('statsCourseName').textContent = courseName;
+                    
+                    const stats = res.data.stats;
+                    document.getElementById('statTotal').textContent = stats.total_students;
+                    document.getElementById('statAvg').textContent = stats.avg_score;
+                    document.getElementById('statMax').textContent = stats.max_score;
+                    document.getElementById('statMin').textContent = stats.min_score;
+                    
+                    const passRate = stats.total_students > 0 
+                        ? Math.round((stats.pass_count / stats.total_students) * 100) + '%'
+                        : '0%';
+                    document.getElementById('statPass').textContent = passRate;
+
+                    if (res.data.distribution) {
+                        createBarChart('gradeDistChart',
+                            res.data.distribution.map(d => d.grade),
+                            res.data.distribution.map(d => parseInt(d.count))
+                        );
+                    }
+
+                    document.getElementById('courseStatsCard').scrollIntoView({ behavior: 'smooth' });
+                }
+            } catch (err) {
+                showToast('加载课程统计失败: ' + err.message, 'error');
+            }
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadCourses);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            loadCourses();
+        });
+    </script>
+</body>
+</html>

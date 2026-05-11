@@ -1,0 +1,33 @@
+{
+  "name": "student-mgmt",
+  "leadAgentId": "627fe51290a84c9cbfe75fc3d1b865b5",
+  "workspacePath": "c:/Users/yuban10032/WorkBuddy/20260511020652",
+  "createdAt": "2026-05-10T18:19:29.982Z",
+  "options": {
+    "workspacePath": "c:/Users/yuban10032/WorkBuddy/20260511020652",
+    "isAutoTeam": false
+  },
+  "members": [
+    {
+      "memberId": "team-lead@student-mgmt",
+      "name": "team-lead",
+      "role": "Team Lead - coordinates the team and interacts with the user"
+    },
+    {
+      "memberId": "backend-dev@student-mgmt",
+      "name": "backend-dev",
+      "role": "Create backend API service"
+    },
+    {
+      "memberId": "frontend-dev@student-mgmt",
+      "name": "frontend-dev",
+      "role": "Create frontend HTML pages"
+    },
+    {
+      "memberId": "agent-dev@student-mgmt",
+      "name": "agent-dev",
+      "role": "Create agent service"
+    }
+  ],
+  "isAutoTeam": false
+}

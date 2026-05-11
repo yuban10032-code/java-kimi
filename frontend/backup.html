@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据备份 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#3b82f6">
+</head>
+<body>
+    <div class="app-container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-details">
+                        <span class="name">--</span>
+                        <span class="role">--</span>
+                    </div>
+                    <button id="logoutBtn" class="btn btn-sm btn-secondary"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="header">
+                <h1><i class="fas fa-database"></i> 数据备份与恢复</h1>
+                <div class="header-right"></div>
+            </header>
+
+            <div class="content">
+                <div class="card-grid">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-download"></i> 创建备份</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="backupForm">
+                                <div class="form-group">
+                                    <label>备份名称</label>
+                                    <input type="text" id="backupName" class="form-control" placeholder="backup_2026-05-11">
+                                </div>
+                                <div class="form-group">
+                                    <label>描述</label>
+                                    <textarea id="backupDesc" class="form-control" rows="2" placeholder="备份说明..."></textarea>
+                                </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="includeUsers"> 包含用户数据
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-play"></i> 开始备份
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h3><i class="fas fa-upload"></i> 恢复数据</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="restoreForm">
+                                <div class="form-group">
+                                    <label>选择备份文件 (JSON)</label>
+                                    <input type="file" id="restoreFile" class="form-control" accept=".json">
+                                </div>
+                                <div class="form-group">
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" id="overwriteExisting"> 覆盖现有数据
+                                    </label>
+                                </div>
+                                <div class="alert alert-warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                    恢复操作会修改数据库，请谨慎操作！
+                                </div>
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="fas fa-undo"></i> 开始恢复
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3><i class="fas fa-history"></i> 备份历史</h3>
+                        <button class="btn btn-sm btn-secondary" onclick="loadBackupHistory()">
+                            <i class="fas fa-sync"></i> 刷新
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>名称</th>
+                                        <th>描述</th>
+                                        <th>操作类型</th>
+                                        <th>表数量</th>
+                                        <th>大小</th>
+                                        <th>创建时间</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="backupHistoryBody">
+                                    <tr><td colspan="7" class="text-center">加载中...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+    (function() {
+        loadBackupHistory();
+
+        document.getElementById('backupForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 备份中...';
+
+            try {
+                const res = await apiPost('/backup/create', {
+                    name: document.getElementById('backupName').value,
+                    description: document.getElementById('backupDesc').value,
+                    includeUsers: document.getElementById('includeUsers').checked
+                });
+                if (res.success) {
+                    showToast('备份创建成功');
+                    loadBackupHistory();
+                    // Trigger download
+                    const blob = new Blob([JSON.stringify(res.data, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${res.data.name}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }
+            } catch (err) {
+                showToast('备份失败: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-play"></i> 开始备份';
+            }
+        });
+
+        document.getElementById('restoreForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const file = document.getElementById('restoreFile').files[0];
+            if (!file) {
+                showToast('请选择备份文件', 'warning');
+                return;
+            }
+
+            if (!confirm('确定要恢复数据吗？此操作不可撤销！')) return;
+
+            const btn = e.target.querySelector('button[type="submit"]');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 恢复中...';
+
+            try {
+                const text = await file.text();
+                const data = JSON.parse(text);
+
+                const res = await apiPost('/backup/restore', {
+                    data,
+                    options: {
+                        overwriteExisting: document.getElementById('overwriteExisting').checked
+                    }
+                });
+                if (res.success) {
+                    showToast('数据恢复成功');
+                    loadBackupHistory();
+                }
+            } catch (err) {
+                showToast('恢复失败: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-undo"></i> 开始恢复';
+            }
+        });
+
+        async function loadBackupHistory() {
+            try {
+                const res = await apiGet('/backup/list');
+                const tbody = document.getElementById('backupHistoryBody');
+                if (res.success && res.data.length > 0) {
+                    tbody.innerHTML = res.data.map(b => `
+                        <tr>
+                            <td>${b.name}</td>
+                            <td>${b.description || '-'}</td>
+                            <td><span class="badge badge-${b.action === 'restore' ? 'danger' : 'success'}">${b.action === 'restore' ? '恢复' : '备份'}</span></td>
+                            <td>${b.table_count}</td>
+                            <td>${formatBytes(b.data_size)}</td>
+                            <td>${formatDateTime(b.created_at)}</td>
+                            <td>
+                                <button class="btn btn-sm btn-secondary" onclick="downloadBackup('${b.name}')">
+                                    <i class="fas fa-download"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center">暂无备份记录</td></tr>';
+                }
+            } catch (err) {
+                document.getElementById('backupHistoryBody').innerHTML =
+                    '<tr><td colspan="7" class="text-center text-error">加载失败</td></tr>';
+            }
+        }
+
+        window.downloadBackup = async function(name) {
+            try {
+                const res = await apiGet('/backup/list');
+                const backup = res.data?.find(b => b.name === name);
+                if (!backup) {
+                    showToast('备份记录不存在', 'error');
+                    return;
+                }
+                // Trigger server download
+                const token = getToken();
+                const a = document.createElement('a');
+                a.href = `http://localhost:3001/api/backup/download/${encodeURIComponent(name)}?token=${token}`;
+                a.download = `${name}.json`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+            } catch (err) {
+                showToast('下载失败: ' + err.message, 'error');
+            }
+        };
+
+        function formatBytes(bytes) {
+            if (!bytes) return '-';
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let i = 0;
+            while (bytes >= 1024 && i < units.length - 1) {
+                bytes /= 1024;
+                i++;
+            }
+            return bytes.toFixed(2) + ' ' + units[i];
+        }
+    })();
+    </script>
+</body>
+</html>

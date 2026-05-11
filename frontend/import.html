@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据导入 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>数据导入</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="card">
+                    <div class="card-header"><h3><i class="fas fa-file-import"></i> 导入学生数据</h3></div>
+                    <div class="card-body">
+                        <p style="margin-bottom: 15px; color: var(--gray);">支持CSV格式导入。第一行为表头，包含以下字段：学号、姓名、性别、出生日期、电话、邮箱、专业、班级、年级、入学日期、状态</p>
+                        
+                        <div class="form-group">
+                            <label>CSV数据</label>
+                            <textarea id="importData" rows="15" placeholder="学号,姓名,性别,出生日期,电话,邮箱,专业,班级,年级,入学日期,状态
+2024001001,张三,男,2005-01-01,13800138001,zhangsan@edu.com,计算机,计科2401,2024级,2024-09-01,active
+2024001002,李四,女,2005-03-15,13800138002,lisi@edu.com,软件工程,软工2401,2024级,2024-09-01,active"></textarea>
+                        </div>
+
+                        <div style="margin-top: 20px;">
+                            <button class="btn btn-primary" id="importBtn"><i class="fas fa-upload"></i> 开始导入</button>
+                            <a href="students.html" class="btn btn-secondary"><i class="fas fa-times"></i> 取消</a>
+                        </div>
+
+                        <div id="importResult" style="margin-top: 20px; display: none;">
+                            <div class="card" style="background: #f8fafc;">
+                                <div class="card-body">
+                                    <h4 style="margin-bottom: 10px;">导入结果</h4>
+                                    <p>成功: <span id="successCount" style="color: var(--success); font-weight: bold;">0</span> 条</p>
+                                    <p>失败: <span id="failCount" style="color: var(--danger); font-weight: bold;">0</span> 条</p>
+                                    <div id="errorDetails" style="margin-top: 10px;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        document.getElementById('importBtn').addEventListener('click', async () => {
+            const data = document.getElementById('importData').value.trim();
+            if (!data) {
+                showToast('请输入导入数据', 'warning');
+                return;
+            }
+
+            try {
+                const res = await apiPost('/import/students', { data });
+                if (res.success) {
+                    const result = res.data;
+                    document.getElementById('importResult').style.display = 'block';
+                    document.getElementById('successCount').textContent = result.success;
+                    document.getElementById('failCount').textContent = result.failed;
+                    
+                    if (result.errors.length > 0) {
+                        document.getElementById('errorDetails').innerHTML = 
+                            '<p style="color: var(--danger); font-weight: 500;">错误详情:</p>' +
+                            result.errors.slice(0, 10).map(e => `<p style="font-size: 12px; color: var(--gray);">${JSON.stringify(e.row)} - ${e.error}</p>`).join('');
+                    }
+                    
+                    showToast(`导入完成！成功 ${result.success} 条，失败 ${result.failed} 条`);
+                }
+            } catch (err) {
+                showToast('导入失败: ' + err.message, 'error');
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', initPage);
+    </script>
+</body>
+</html>

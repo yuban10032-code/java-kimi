@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生管理 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>学生管理</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="toolbar">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="搜索学号、姓名、电话...">
+                        <button class="btn btn-primary btn-sm" id="searchBtn"><i class="fas fa-search"></i> 搜索</button>
+                    </div>
+                    <div class="filter-group">
+                        <select id="filterMajor"><option value="">全部专业</option></select>
+                        <select id="filterClass"><option value="">全部班级</option></select>
+                        <select id="filterGrade"><option value="">全部年级</option></select>
+                        <select id="filterStatus"><option value="">全部状态</option></select>
+                        <a href="student-form.html" class="btn btn-success btn-sm"><i class="fas fa-plus"></i> 新增学生</a>
+                    </div>
+                </div>
+
+                <div class="batch-toolbar" id="batchToolbar">
+                    <span style="font-size: 14px; font-weight: 500;">已选择 <span id="batchCount">0</span> 项</span>
+                    <button class="btn btn-sm btn-danger" onclick="batchDelete()"><i class="fas fa-trash"></i> 批量删除</button>
+                    <button class="btn btn-sm btn-warning" onclick="batchUpdateStatus('graduated')"><i class="fas fa-graduation-cap"></i> 标记毕业</button>
+                    <button class="btn btn-sm btn-secondary" onclick="clearSelection()"><i class="fas fa-times"></i> 取消</button>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                                        <th>学号</th>
+                                        <th>姓名</th>
+                                        <th>性别</th>
+                                        <th>专业</th>
+                                        <th>班级</th>
+                                        <th>年级</th>
+                                        <th>电话</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="studentsTable"></tbody>
+                            </table>
+                        </div>
+                        <div class="pagination" id="pagination"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let currentPage = 1;
+        const pageSize = 10;
+        let metadata = {};
+        let selectedIds = new Set();
+
+        async function loadMetadata() {
+            try {
+                const res = await apiGet('/students/metadata/options');
+                if (res.success) {
+                    metadata = res.data;
+                    
+                    const majorSelect = document.getElementById('filterMajor');
+                    metadata.majors.forEach(m => {
+                        majorSelect.innerHTML += `<option value="${m}">${m}</option>`;
+                    });
+
+                    const classSelect = document.getElementById('filterClass');
+                    metadata.classes.forEach(c => {
+                        classSelect.innerHTML += `<option value="${c}">${c}</option>`;
+                    });
+
+                    const gradeSelect = document.getElementById('filterGrade');
+                    metadata.grades.forEach(g => {
+                        gradeSelect.innerHTML += `<option value="${g}">${g}</option>`;
+                    });
+
+                    const statusSelect = document.getElementById('filterStatus');
+                    metadata.statuses.forEach(s => {
+                        const label = { active: '在读', graduated: '已毕业', suspended: '休学' };
+                        statusSelect.innerHTML += `<option value="${s}">${label[s] || s}</option>`;
+                    });
+                }
+            } catch (err) {
+                console.error('Load metadata error:', err);
+            }
+        }
+
+        async function loadStudents(page = 1) {
+            try {
+                const search = document.getElementById('searchInput').value;
+                const major = document.getElementById('filterMajor').value;
+                const className = document.getElementById('filterClass').value;
+                const grade = document.getElementById('filterGrade').value;
+                const status = document.getElementById('filterStatus').value;
+
+                let url = `/students?page=${page}&limit=${pageSize}`;
+                if (search) url += `&search=${encodeURIComponent(search)}`;
+                if (major) url += `&major=${encodeURIComponent(major)}`;
+                if (className) url += `&class_name=${encodeURIComponent(className)}`;
+                if (grade) url += `&grade=${encodeURIComponent(grade)}`;
+                if (status) url += `&status=${encodeURIComponent(status)}`;
+
+                const res = await apiGet(url);
+                if (res.success) {
+                    renderTable(res.data);
+                    renderPagination(res.pagination);
+                }
+            } catch (err) {
+                showToast('加载学生列表失败: ' + err.message, 'error');
+            }
+        }
+
+        function renderTable(students) {
+            const tbody = document.getElementById('studentsTable');
+            if (!students || students.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="empty-state"><i class="fas fa-inbox"></i><h4>暂无数据</h4><p>没有找到符合条件的学生</p></td></tr>`;
+                return;
+            }
+
+            const statusLabels = { active: '在读', graduated: '已毕业', suspended: '休学' };
+            const statusClasses = { active: 'badge-success', graduated: 'badge-info', suspended: 'badge-warning' };
+
+            tbody.innerHTML = students.map(s => `
+                <tr>
+                    <td><input type="checkbox" value="${s.id}" ${selectedIds.has(s.id) ? 'checked' : ''} onchange="toggleSelect(${s.id})"></td>
+                    <td>${s.student_no}</td>
+                    <td><strong>${s.name}</strong></td>
+                    <td>${s.gender || '-'}</td>
+                    <td>${s.major || '-'}</td>
+                    <td>${s.class_name || '-'}</td>
+                    <td>${s.grade || '-'}</td>
+                    <td>${s.phone || '-'}</td>
+                    <td><span class="badge ${statusClasses[s.status] || ''}">${statusLabels[s.status] || s.status}</span></td>
+                    <td>
+                        <a href="student-form.html?id=${s.id}" class="btn btn-sm btn-primary" title="编辑"><i class="fas fa-edit"></i></a>
+                        <button class="btn btn-sm btn-danger" onclick="deleteStudent(${s.id}, '${s.name}')" title="删除"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function renderPagination(pagination) {
+            const el = document.getElementById('pagination');
+            if (!pagination || pagination.totalPages <= 1) {
+                el.innerHTML = '';
+                return;
+            }
+
+            let html = `<button ${pagination.page === 1 ? 'disabled' : ''} onclick="loadStudents(${pagination.page - 1})"><i class="fas fa-chevron-left"></i></button>`;
+            
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                if (i === 1 || i === pagination.totalPages || (i >= pagination.page - 1 && i <= pagination.page + 1)) {
+                    html += `<button class="${i === pagination.page ? 'active' : ''}" onclick="loadStudents(${i})">${i}</button>`;
+                } else if (i === pagination.page - 2 || i === pagination.page + 2) {
+                    html += `<span>...</span>`;
+                }
+            }
+
+            html += `<button ${pagination.page === pagination.totalPages ? 'disabled' : ''} onclick="loadStudents(${pagination.page + 1})"><i class="fas fa-chevron-right"></i></button>`;
+            el.innerHTML = html;
+        }
+
+        async function deleteStudent(id, name) {
+            if (!confirm(`确定要删除学生 "${name}" 吗？此操作不可恢复。`)) return;
+            
+            try {
+                const res = await apiDelete(`/students/${id}`);
+                if (res.success) {
+                    showToast('删除成功');
+                    loadStudents(currentPage);
+                }
+            } catch (err) {
+                showToast('删除失败: ' + err.message, 'error');
+            }
+        }
+
+        function toggleSelect(id) {
+            if (selectedIds.has(id)) {
+                selectedIds.delete(id);
+            } else {
+                selectedIds.add(id);
+            }
+            updateBatchToolbar();
+        }
+
+        function toggleSelectAll() {
+            const checkboxes = document.querySelectorAll('#studentsTable input[type="checkbox"]');
+            const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+            
+            checkboxes.forEach(cb => {
+                cb.checked = !allChecked;
+                const id = parseInt(cb.value);
+                if (!allChecked) {
+                    selectedIds.add(id);
+                } else {
+                    selectedIds.delete(id);
+                }
+            });
+            updateBatchToolbar();
+        }
+
+        function updateBatchToolbar() {
+            const toolbar = document.getElementById('batchToolbar');
+            const count = selectedIds.size;
+            document.getElementById('batchCount').textContent = count;
+            
+            if (count > 0) {
+                toolbar.classList.add('active');
+            } else {
+                toolbar.classList.remove('active');
+            }
+        }
+
+        function clearSelection() {
+            selectedIds.clear();
+            document.getElementById('selectAll').checked = false;
+            loadStudents(currentPage);
+            updateBatchToolbar();
+        }
+
+        async function batchDelete() {
+            if (selectedIds.size === 0) return;
+            if (!confirm(`确定要删除选中的 ${selectedIds.size} 名学生吗？此操作不可恢复。`)) return;
+            
+            try {
+                const res = await apiPost('/batch/students/delete', { ids: Array.from(selectedIds) });
+                if (res.success) {
+                    showToast(res.message);
+                    clearSelection();
+                    loadStudents(currentPage);
+                }
+            } catch (err) {
+                showToast('批量删除失败: ' + err.message, 'error');
+            }
+        }
+
+        async function batchUpdateStatus(status) {
+            if (selectedIds.size === 0) return;
+            
+            try {
+                const res = await apiPost('/batch/students/status', { ids: Array.from(selectedIds), status });
+                if (res.success) {
+                    showToast(res.message);
+                    clearSelection();
+                    loadStudents(currentPage);
+                }
+            } catch (err) {
+                showToast('批量更新失败: ' + err.message, 'error');
+            }
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', () => loadStudents(1));
+        document.getElementById('searchInput').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') loadStudents(1);
+        });
+        document.getElementById('filterMajor').addEventListener('change', () => loadStudents(1));
+        document.getElementById('filterClass').addEventListener('change', () => loadStudents(1));
+        document.getElementById('filterGrade').addEventListener('change', () => loadStudents(1));
+        document.getElementById('filterStatus').addEventListener('change', () => loadStudents(1));
+        document.getElementById('refreshBtn').addEventListener('click', () => loadStudents(currentPage));
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            loadMetadata().then(() => loadStudents());
+        });
+    </script>
+</body>
+</html>

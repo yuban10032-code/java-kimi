@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>班级管理 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>班级管理</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="card">
+                    <div class="card-header"><h3><i class="fas fa-users"></i> 班级列表</h3></div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>班级</th>
+                                        <th>年级</th>
+                                        <th>专业</th>
+                                        <th>学生数</th>
+                                        <th>男生</th>
+                                        <th>女生</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="classesTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="classStudentsCard" class="card" style="margin-top: 20px; display: none;">
+                    <div class="card-header">
+                        <h3><i class="fas fa-user-graduate"></i> <span id="classTitle"></span> - 学生名单</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>学号</th><th>姓名</th><th>性别</th><th>电话</th></tr>
+                                </thead>
+                                <tbody id="classStudentsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        async function loadClasses() {
+            try {
+                const res = await apiGet('/classes');
+                if (res.success) {
+                    const tbody = document.getElementById('classesTable');
+                    tbody.innerHTML = res.data.map(c => `
+                        <tr>
+                            <td><strong>${c.class_name}</strong></td>
+                            <td>${c.grade || '-'}</td>
+                            <td>${c.major || '-'}</td>
+                            <td>${c.student_count}</td>
+                            <td>${c.male_count}</td>
+                            <td>${c.female_count}</td>
+                            <td>
+                                <button class="btn btn-sm btn-primary" onclick="showClassStudents('${c.class_name}')">
+                                    <i class="fas fa-list"></i> 查看
+                                </button>
+                            </td>
+                        </tr>
+                    `).join('');
+                }
+            } catch (err) {
+                showToast('加载班级列表失败: ' + err.message, 'error');
+            }
+        }
+
+        async function showClassStudents(className) {
+            try {
+                const res = await apiGet(`/classes/${encodeURIComponent(className)}/students`);
+                if (res.success) {
+                    document.getElementById('classStudentsCard').style.display = 'block';
+                    document.getElementById('classTitle').textContent = className;
+                    
+                    const tbody = document.getElementById('classStudentsTable');
+                    if (res.data.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="4" class="empty-state">暂无学生</td></tr>';
+                    } else {
+                        tbody.innerHTML = res.data.map(s => `
+                            <tr>
+                                <td>${s.student_no}</td>
+                                <td>${s.name}</td>
+                                <td>${s.gender || '-'}</td>
+                                <td>${s.phone || '-'}</td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    document.getElementById('classStudentsCard').scrollIntoView({ behavior: 'smooth' });
+                }
+            } catch (err) {
+                showToast('加载班级学生失败: ' + err.message, 'error');
+            }
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadClasses);
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            loadClasses();
+        });
+    </script>
+</body>
+</html>

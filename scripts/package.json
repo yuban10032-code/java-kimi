@@ -1,0 +1,13 @@
+{
+  "name": "student-management-scripts",
+  "version": "1.0.0",
+  "scripts": {
+    "test-api": "node test-api.js",
+    "init-db": "node init-db.js",
+    "generate-data": "node generate-test-data.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "pg": "^8.11.3"
+  }
+}

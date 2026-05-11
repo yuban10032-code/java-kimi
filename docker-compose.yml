@@ -1,0 +1,99 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: student_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: student_admin
+      POSTGRES_PASSWORD: student_pass_2024
+      POSTGRES_DB: student_management
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U student_admin -d student_management"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - student_net
+
+  flyway:
+    image: flyway/flyway:10
+    container_name: student_flyway
+    volumes:
+      - ./flyway/sql:/flyway/sql
+      - ./flyway/conf:/flyway/conf
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/student_management
+      FLYWAY_USER: student_admin
+      FLYWAY_PASSWORD: student_pass_2024
+    depends_on:
+      db:
+        condition: service_healthy
+    command: migrate
+    networks:
+      - student_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: student_backend
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - DATABASE_URL=postgresql://student_admin:student_pass_2024@db:5432/student_management
+      - JWT_SECRET=student_jwt_secret_key_2024_change_in_production
+      - AI_API_KEY=${AI_API_KEY}
+      - AI_API_URL=${AI_API_URL}
+    depends_on:
+      flyway:
+        condition: service_completed_successfully
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - student_net
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: student_frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - student_net
+    restart: unless-stopped
+
+  agent:
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    container_name: student_agent
+    ports:
+      - "3002:3002"
+    environment:
+      - PORT=3002
+      - DATABASE_URL=postgresql://student_admin:student_pass_2024@db:5432/student_management
+      - AI_API_KEY=${AI_API_KEY}
+      - AI_API_URL=${AI_API_URL}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - student_net
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+
+networks:
+  student_net:
+    driver: bridge

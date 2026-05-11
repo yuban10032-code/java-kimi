@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学生信息 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2 id="pageTitle">新增学生</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="card">
+                    <div class="card-body">
+                        <form id="studentForm">
+                            <input type="hidden" id="studentId">
+                            
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>学号 <span class="required">*</span></label>
+                                    <input type="text" id="studentNo" required placeholder="如: 2024001001">
+                                </div>
+                                <div class="form-group">
+                                    <label>姓名 <span class="required">*</span></label>
+                                    <input type="text" id="name" required placeholder="请输入姓名">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>性别</label>
+                                    <select id="gender">
+                                        <option value="">请选择</option>
+                                        <option value="男">男</option>
+                                        <option value="女">女</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>出生日期</label>
+                                    <input type="date" id="birthday">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>身份证号</label>
+                                    <input type="text" id="idCard" placeholder="18位身份证号">
+                                </div>
+                                <div class="form-group">
+                                    <label>联系电话</label>
+                                    <input type="text" id="phone" placeholder="手机号码">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>邮箱</label>
+                                    <input type="email" id="email" placeholder="example@email.com">
+                                </div>
+                                <div class="form-group">
+                                    <label>状态</label>
+                                    <select id="status">
+                                        <option value="active">在读</option>
+                                        <option value="graduated">已毕业</option>
+                                        <option value="suspended">休学</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>专业</label>
+                                    <input type="text" id="major" placeholder="如: 计算机科学与技术">
+                                </div>
+                                <div class="form-group">
+                                    <label>班级</label>
+                                    <input type="text" id="className" placeholder="如: 计科2401">
+                                </div>
+                            </div>
+
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>年级</label>
+                                    <input type="text" id="grade" placeholder="如: 2024级">
+                                </div>
+                                <div class="form-group">
+                                    <label>入学日期</label>
+                                    <input type="date" id="enrollmentDate">
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>家庭住址</label>
+                                <textarea id="address" placeholder="详细地址"></textarea>
+                            </div>
+
+                            <div class="form-group">
+                                <label>照片URL</label>
+                                <input type="text" id="photoUrl" placeholder="照片链接地址">
+                            </div>
+
+                            <div class="form-row" style="justify-content: flex-end; margin-top: 30px;">
+                                <a href="students.html" class="btn btn-secondary"><i class="fas fa-times"></i> 取消</a>
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> 保存</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let isEdit = false;
+        let editId = null;
+
+        async function loadStudent(id) {
+            try {
+                const res = await apiGet(`/students/${id}`);
+                if (res.success) {
+                    const s = res.data;
+                    document.getElementById('studentId').value = s.id;
+                    document.getElementById('studentNo').value = s.student_no;
+                    document.getElementById('name').value = s.name;
+                    document.getElementById('gender').value = s.gender || '';
+                    document.getElementById('birthday').value = s.birthday ? s.birthday.split('T')[0] : '';
+                    document.getElementById('idCard').value = s.id_card || '';
+                    document.getElementById('phone').value = s.phone || '';
+                    document.getElementById('email').value = s.email || '';
+                    document.getElementById('status').value = s.status;
+                    document.getElementById('major').value = s.major || '';
+                    document.getElementById('className').value = s.class_name || '';
+                    document.getElementById('grade').value = s.grade || '';
+                    document.getElementById('enrollmentDate').value = s.enrollment_date ? s.enrollment_date.split('T')[0] : '';
+                    document.getElementById('address').value = s.address || '';
+                    document.getElementById('photoUrl').value = s.photo_url || '';
+                }
+            } catch (err) {
+                showToast('加载学生信息失败: ' + err.message, 'error');
+            }
+        }
+
+        document.getElementById('studentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const data = {
+                student_no: document.getElementById('studentNo').value,
+                name: document.getElementById('name').value,
+                gender: document.getElementById('gender').value,
+                birthday: document.getElementById('birthday').value,
+                id_card: document.getElementById('idCard').value,
+                phone: document.getElementById('phone').value,
+                email: document.getElementById('email').value,
+                status: document.getElementById('status').value,
+                major: document.getElementById('major').value,
+                class_name: document.getElementById('className').value,
+                grade: document.getElementById('grade').value,
+                enrollment_date: document.getElementById('enrollmentDate').value,
+                address: document.getElementById('address').value,
+                photo_url: document.getElementById('photoUrl').value,
+            };
+
+            try {
+                if (isEdit) {
+                    const res = await apiPut(`/students/${editId}`, data);
+                    if (res.success) {
+                        showToast('更新成功');
+                        window.location.href = 'students.html';
+                    }
+                } else {
+                    const res = await apiPost('/students', data);
+                    if (res.success) {
+                        showToast('创建成功');
+                        window.location.href = 'students.html';
+                    }
+                }
+            } catch (err) {
+                showToast('保存失败: ' + err.message, 'error');
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            
+            const id = getQueryParam('id');
+            if (id) {
+                isEdit = true;
+                editId = id;
+                document.getElementById('pageTitle').textContent = '编辑学生';
+                loadStudent(id);
+            }
+        });
+    </script>
+</body>
+</html>

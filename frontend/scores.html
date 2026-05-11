@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>成绩管理 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>成绩管理</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="toolbar">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="搜索课程名称...">
+                        <button class="btn btn-primary btn-sm" id="searchBtn"><i class="fas fa-search"></i></button>
+                    </div>
+                    <div class="filter-group">
+                        <select id="filterSemester"><option value="">全部学期</option></select>
+                        <button class="btn btn-success btn-sm" id="addScoreBtn"><i class="fas fa-plus"></i> 录入成绩</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>学号</th>
+                                        <th>姓名</th>
+                                        <th>课程</th>
+                                        <th>成绩</th>
+                                        <th>学分</th>
+                                        <th>学期</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="scoresTable"></tbody>
+                            </table>
+                        </div>
+                        <div class="pagination" id="pagination"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Score Modal -->
+    <div class="modal-overlay" id="scoreModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-plus-circle"></i> 录入成绩</h3>
+                <button class="modal-close" onclick="hideModal('scoreModal')"><i class="fas fa-times"></i></button>
+            </div>
+            <form id="scoreForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>学生 <span class="required">*</span></label>
+                        <select id="scoreStudent" required></select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>课程名称 <span class="required">*</span></label>
+                            <input type="text" id="scoreCourse" required placeholder="如: 高等数学">
+                        </div>
+                        <div class="form-group">
+                            <label>课程代码</label>
+                            <input type="text" id="scoreCourseCode" placeholder="如: MATH101">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>成绩 <span class="required">*</span></label>
+                            <input type="number" id="scoreValue" required min="0" max="100" step="0.01" placeholder="0-100">
+                        </div>
+                        <div class="form-group">
+                            <label>学分</label>
+                            <input type="number" id="scoreCredit" min="0" step="0.1" placeholder="如: 4.0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>学期</label>
+                            <input type="text" id="scoreSemester" placeholder="如: 2024-2025-1">
+                        </div>
+                        <div class="form-group">
+                            <label>考试类型</label>
+                            <select id="scoreExamType">
+                                <option value="regular">正常考试</option>
+                                <option value="makeup">补考</option>
+                                <option value="retake">重修</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="hideModal('scoreModal')">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        let currentPage = 1;
+        const pageSize = 10;
+
+        async function loadScores(page = 1) {
+            try {
+                const search = document.getElementById('searchInput').value;
+                const semester = document.getElementById('filterSemester').value;
+
+                let url = `/scores?page=${page}&limit=${pageSize}`;
+                if (search) url += `&course_name=${encodeURIComponent(search)}`;
+                if (semester) url += `&semester=${encodeURIComponent(semester)}`;
+
+                const res = await apiGet(url);
+                if (res.success) {
+                    renderTable(res.data);
+                    renderPagination(res.pagination);
+                }
+            } catch (err) {
+                showToast('加载成绩列表失败: ' + err.message, 'error');
+            }
+        }
+
+        function renderTable(scores) {
+            const tbody = document.getElementById('scoresTable');
+            if (!scores || scores.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-state"><i class="fas fa-inbox"></i><h4>暂无数据</h4></td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = scores.map(s => {
+                let scoreClass = '';
+                if (s.score >= 90) scoreClass = 'color: #10b981; font-weight: bold;';
+                else if (s.score < 60) scoreClass = 'color: #ef4444; font-weight: bold;';
+                else scoreClass = 'color: #f59e0b;';
+
+                return `
+                    <tr>
+                        <td>${s.student_no}</td>
+                        <td>${s.student_name}</td>
+                        <td>${s.course_name}</td>
+                        <td style="${scoreClass}">${s.score}</td>
+                        <td>${s.credit || '-'}</td>
+                        <td>${s.semester || '-'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteScore(${s.id})"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderPagination(pagination) {
+            const el = document.getElementById('pagination');
+            if (!pagination || pagination.totalPages <= 1) {
+                el.innerHTML = '';
+                return;
+            }
+            let html = `<button ${pagination.page === 1 ? 'disabled' : ''} onclick="loadScores(${pagination.page - 1})"><i class="fas fa-chevron-left"></i></button>`;
+            for (let i = 1; i <= pagination.totalPages; i++) {
+                if (i === 1 || i === pagination.totalPages || (i >= pagination.page - 1 && i <= pagination.page + 1)) {
+                    html += `<button class="${i === pagination.page ? 'active' : ''}" onclick="loadScores(${i})">${i}</button>`;
+                } else if (i === pagination.page - 2 || i === pagination.page + 2) {
+                    html += `<span>...</span>`;
+                }
+            }
+            html += `<button ${pagination.page === pagination.totalPages ? 'disabled' : ''} onclick="loadScores(${pagination.page + 1})"><i class="fas fa-chevron-right"></i></button>`;
+            el.innerHTML = html;
+        }
+
+        async function loadStudentsForSelect() {
+            try {
+                const res = await apiGet('/students?limit=1000');
+                if (res.success) {
+                    const select = document.getElementById('scoreStudent');
+                    select.innerHTML = '<option value="">请选择学生</option>' + 
+                        res.data.map(s => `<option value="${s.id}">${s.student_no} - ${s.name}</option>`).join('');
+                    
+                    // Also populate semester filter
+                    const semesters = [...new Set(res.data.flatMap(s => []))];
+                }
+            } catch (err) {
+                console.error('Load students error:', err);
+            }
+        }
+
+        async function loadSemesters() {
+            try {
+                const res = await apiGet('/scores?limit=1000');
+                if (res.success) {
+                    const semesters = [...new Set(res.data.map(s => s.semester).filter(Boolean))].sort();
+                    const select = document.getElementById('filterSemester');
+                    select.innerHTML = '<option value="">全部学期</option>' + 
+                        semesters.map(s => `<option value="${s}">${s}</option>`).join('');
+                }
+            } catch (err) {
+                console.error('Load semesters error:', err);
+            }
+        }
+
+        document.getElementById('addScoreBtn').addEventListener('click', () => {
+            loadStudentsForSelect();
+            showModal('scoreModal');
+        });
+
+        document.getElementById('scoreForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const data = {
+                student_id: parseInt(document.getElementById('scoreStudent').value),
+                course_name: document.getElementById('scoreCourse').value,
+                course_code: document.getElementById('scoreCourseCode').value,
+                score: parseFloat(document.getElementById('scoreValue').value),
+                credit: parseFloat(document.getElementById('scoreCredit').value) || null,
+                semester: document.getElementById('scoreSemester').value,
+                exam_type: document.getElementById('scoreExamType').value,
+            };
+
+            try {
+                const res = await apiPost('/scores', data);
+                if (res.success) {
+                    showToast('成绩录入成功');
+                    hideModal('scoreModal');
+                    loadScores(currentPage);
+                    document.getElementById('scoreForm').reset();
+                }
+            } catch (err) {
+                showToast('录入失败: ' + err.message, 'error');
+            }
+        });
+
+        async function deleteScore(id) {
+            if (!confirm('确定要删除这条成绩记录吗？')) return;
+            try {
+                const res = await apiDelete(`/scores/${id}`);
+                if (res.success) {
+                    showToast('删除成功');
+                    loadScores(currentPage);
+                }
+            } catch (err) {
+                showToast('删除失败: ' + err.message, 'error');
+            }
+        }
+
+        document.getElementById('searchBtn').addEventListener('click', () => loadScores(1));
+        document.getElementById('searchInput').addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') loadScores(1);
+        });
+        document.getElementById('filterSemester').addEventListener('change', () => loadScores(1));
+        document.getElementById('refreshBtn').addEventListener('click', () => loadScores(currentPage));
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            loadScores();
+            loadSemesters();
+        });
+    </script>
+</body>
+</html>

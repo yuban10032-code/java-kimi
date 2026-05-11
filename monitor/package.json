@@ -1,0 +1,9 @@
+{
+  "name": "student-management-monitor",
+  "version": "1.0.0",
+  "description": "Monitoring and self-healing for Student Management System",
+  "scripts": {
+    "health-check": "node health-check.js",
+    "watch": "node watch.js"
+  }
+}

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数据看板 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2>数据看板</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content">
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon blue"><i class="fas fa-users"></i></div>
+                        <div class="stat-info">
+                            <h4 id="totalStudents">-</h4>
+                            <p>在读学生总数</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green"><i class="fas fa-book"></i></div>
+                        <div class="stat-info">
+                            <h4 id="totalCourses">-</h4>
+                            <p>课程总数</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon orange"><i class="fas fa-chart-line"></i></div>
+                        <div class="stat-info">
+                            <h4 id="avgScore">-</h4>
+                            <p>平均成绩</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon red"><i class="fas fa-percentage"></i></div>
+                        <div class="stat-info">
+                            <h4 id="passRate">-</h4>
+                            <p>及格率</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="charts-grid">
+                    <div class="card">
+                        <div class="card-header"><h3><i class="fas fa-chart-bar"></i> 成绩分布</h3></div>
+                        <div class="card-body"><div class="chart-container"><canvas id="scoreDistChart"></canvas></div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3><i class="fas fa-chart-pie"></i> 专业分布</h3></div>
+                        <div class="card-body"><div class="chart-container"><canvas id="majorDistChart"></canvas></div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3><i class="fas fa-chart-line"></i> 学期成绩趋势</h3></div>
+                        <div class="card-body"><div class="chart-container"><canvas id="semesterTrendChart"></canvas></div></div>
+                    </div>
+                    <div class="card">
+                        <div class="card-header"><h3><i class="fas fa-trophy"></i> 成绩TOP10</h3></div>
+                        <div class="card-body"><div class="chart-container"><canvas id="topStudentsChart"></canvas></div></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header"><h3><i class="fas fa-clock"></i> 最近添加的学生</h3></div>
+                    <div class="card-body">
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr><th>学号</th><th>姓名</th><th>专业</th><th>添加时间</th></tr>
+                                </thead>
+                                <tbody id="recentStudentsTable"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script src="js/charts.js"></script>
+    <script>
+        async function loadDashboard() {
+            try {
+                const statsRes = await apiGet('/dashboard/stats');
+                const chartsRes = await apiGet('/dashboard/charts');
+
+                if (statsRes.success) {
+                    const data = statsRes.data;
+                    document.getElementById('totalStudents').textContent = data.totalStudents;
+                    document.getElementById('totalCourses').textContent = data.totalCourses;
+                    document.getElementById('avgScore').textContent = data.avgScore;
+                    document.getElementById('passRate').textContent = data.passRate + '%';
+
+                    // Score distribution
+                    if (data.gradeDistribution) {
+                        createBarChart('scoreDistChart', 
+                            data.gradeDistribution.map(d => d.grade),
+                            data.gradeDistribution.map(d => parseInt(d.count))
+                        );
+                    }
+
+                    // Major distribution
+                    if (data.majorDistribution) {
+                        createDoughnutChart('majorDistChart',
+                            data.majorDistribution.map(d => d.major),
+                            data.majorDistribution.map(d => parseInt(d.count))
+                        );
+                    }
+
+                    // Recent students
+                    const tbody = document.getElementById('recentStudentsTable');
+                    tbody.innerHTML = data.recentStudents.map(s => `
+                        <tr>
+                            <td>${s.student_no}</td>
+                            <td>${s.name}</td>
+                            <td>${s.major || '-'}</td>
+                            <td>${formatDateTime(s.created_at)}</td>
+                        </tr>
+                    `).join('');
+                }
+
+                if (chartsRes.success) {
+                    const data = chartsRes.data;
+
+                    if (data.semesterTrend) {
+                        createLineChart('semesterTrendChart',
+                            data.semesterTrend.map(d => d.semester),
+                            data.semesterTrend.map(d => parseFloat(d.avg_score))
+                        );
+                    }
+
+                    if (data.topStudents) {
+                        createBarChart('topStudentsChart',
+                            data.topStudents.map(d => d.name),
+                            data.topStudents.map(d => parseFloat(d.avg_score))
+                        );
+                    }
+                }
+            } catch (err) {
+                showToast('加载数据失败: ' + err.message, 'error');
+            }
+        }
+
+        document.getElementById('refreshBtn').addEventListener('click', loadDashboard);
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            loadDashboard();
+        });
+    </script>
+</body>
+</html>

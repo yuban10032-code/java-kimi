@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI助手 - 学生信息管理系统</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo"><i class="fas fa-graduation-cap"></i></div>
+                <h2>学生管理系统</h2>
+            </div>
+            <nav class="sidebar-nav"></nav>
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar"><i class="fas fa-user"></i></div>
+                    <div class="user-details">
+                        <div class="name">-</div>
+                        <div class="role">-</div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header">
+                <div class="header-left"><h2><i class="fas fa-robot"></i> AI数据库助手</h2></div>
+                <div class="header-right">
+                    <button class="header-btn" id="clearChatBtn" title="清空对话"><i class="fas fa-trash"></i></button>
+                    <button class="header-btn" id="logoutBtn"><i class="fas fa-sign-out-alt"></i></button>
+                </div>
+            </header>
+
+            <div class="page-content" style="padding: 0;">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chatMessages">
+                        <div class="message ai">
+                            <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                            <div class="message-content">
+                                <p>你好！我是学生信息管理系统的AI助手。你可以用自然语言向我提问，我会帮你查询数据库。</p>
+                                <p style="margin-top: 8px; font-size: 13px; opacity: 0.8;">例如：</p>
+                                <ul style="margin-top: 4px; padding-left: 16px; font-size: 13px; opacity: 0.8;">
+                                    <li>查询计算机专业的学生有多少人</li>
+                                    <li>显示平均成绩最高的前5名学生</li>
+                                    <li>统计每个班级的学生人数</li>
+                                    <li>查找成绩不及格的学生</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <input type="text" id="chatInput" placeholder="输入你的问题..." autocomplete="off">
+                        <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/app.js"></script>
+    <script>
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        function appendMessage(role, content, sql = null) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = role === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            
+            if (typeof content === 'string') {
+                contentDiv.innerHTML = `<p>${content.replace(/\n/g, '<br>')}</p>`;
+            } else if (Array.isArray(content) && content.length > 0) {
+                let tableHtml = '<div class="table-container" style="margin-top: 10px;"><table style="font-size: 12px;"><thead><tr>';
+                const headers = Object.keys(content[0]);
+                headers.forEach(h => {
+                    tableHtml += `<th style="padding: 6px 8px; background: rgba(0,0,0,0.05);">${h}</th>`;
+                });
+                tableHtml += '</tr></thead><tbody>';
+                content.forEach(row => {
+                    tableHtml += '<tr>';
+                    headers.forEach(h => {
+                        tableHtml += `<td style="padding: 6px 8px; border-bottom: 1px solid rgba(0,0,0,0.05);">${row[h] !== null ? row[h] : '-'}</td>`;
+                    });
+                    tableHtml += '</tr>';
+                });
+                tableHtml += '</tbody></table></div>';
+                contentDiv.innerHTML = `<p>查询结果 (${content.length} 条记录):</p>${tableHtml}`;
+            } else if (Array.isArray(content) && content.length === 0) {
+                contentDiv.innerHTML = '<p>查询完成，但没有找到匹配的记录。</p>';
+            } else {
+                contentDiv.innerHTML = `<p>${JSON.stringify(content)}</p>`;
+            }
+
+            if (sql) {
+                contentDiv.innerHTML += `<pre style="margin-top: 10px; font-size: 11px; opacity: 0.7;">${sql}</pre>`;
+            }
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(contentDiv);
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTyping() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message ai typing';
+            typingDiv.innerHTML = `
+                <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                <div class="message-content">
+                    <div class="loading-spinner"></div> 正在思考...
+                </div>
+            `;
+            typingDiv.id = 'typingIndicator';
+            chatMessages.appendChild(typingDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTyping() {
+            const typing = document.getElementById('typingIndicator');
+            if (typing) typing.remove();
+        }
+
+        async function sendMessage() {
+            const query = chatInput.value.trim();
+            if (!query) return;
+
+            appendMessage('user', query);
+            chatInput.value = '';
+            showTyping();
+
+            try {
+                const res = await apiPost('/agent/query', { query });
+                hideTyping();
+                
+                if (res.success) {
+                    appendMessage('ai', res.data, res.sql);
+                } else {
+                    appendMessage('ai', '抱歉，查询失败：' + res.message);
+                }
+            } catch (err) {
+                hideTyping();
+                appendMessage('ai', '抱歉，请求出错：' + err.message);
+            }
+        }
+
+        sendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        document.getElementById('clearChatBtn').addEventListener('click', () => {
+            chatMessages.innerHTML = `
+                <div class="message ai">
+                    <div class="message-avatar"><i class="fas fa-robot"></i></div>
+                    <div class="message-content">
+                        <p>对话已清空。有什么可以帮你的吗？</p>
+                    </div>
+                </div>
+            `;
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initPage();
+            chatInput.focus();
+        });
+    </script>
+</body>
+</html>
