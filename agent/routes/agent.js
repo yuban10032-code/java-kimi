@@ -6,6 +6,8 @@ const router = express.Router();
 
 const AI_API_URL = process.env.AI_API_URL || 'https://api.z.ai/v1';
 const AI_API_KEY = process.env.AI_API_KEY;
+const AI_PROVIDER = process.env.AI_PROVIDER || 'openai';
+const AI_MODEL = process.env.AI_MODEL || 'MiniMax-M2.7';
 
 const SYSTEM_PROMPT = `你是一个学生信息管理系统数据库助手。你的任务是根据用户的自然语言问题，生成安全的PostgreSQL SQL查询语句。
 
@@ -44,35 +46,79 @@ const SYSTEM_PROMPT = `你是一个学生信息管理系统数据库助手。你
 - 对于统计查询，使用ROUND保留2位小数
 - 关联查询时使用JOIN`;
 
+function detectProvider() {
+  if (AI_PROVIDER !== 'auto') return AI_PROVIDER;
+  if (AI_API_URL.includes('minimaxi') || AI_API_URL.includes('anthropic')) return 'anthropic';
+  return 'openai';
+}
+
 async function callAI(messages) {
   if (!AI_API_KEY) {
     throw new Error('AI API未配置，请设置AI_API_KEY环境变量');
   }
 
+  const provider = detectProvider();
+
   try {
-    const response = await fetch(`${AI_API_URL}/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${AI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'glm-4-flash',
-        messages,
-        temperature: 0.1,
-      }),
-    });
+    if (provider === 'anthropic') {
+      // Anthropic / MiniMax Token Plan format
+      const userMessages = messages.filter(m => m.role !== 'system');
+      const systemMsg = messages.find(m => m.role === 'system');
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`AI API错误 (${response.status}): ${errorText}`);
-    }
+      const response = await fetch(`${AI_API_URL}/v1/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': AI_API_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          max_tokens: 1024,
+          system: systemMsg ? systemMsg.content : SYSTEM_PROMPT,
+          messages: userMessages.map(m => ({
+            role: m.role,
+            content: [{ type: 'text', text: m.content }]
+          })),
+        }),
+      });
 
-    const data = await response.json();
-    if (!data.choices || !data.choices[0]) {
-      throw new Error('AI API返回无效响应');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI API错误 (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      if (!data.content || !data.content[0]) {
+        throw new Error('AI API返回无效响应: ' + JSON.stringify(data));
+      }
+      return data.content[0].text;
+    } else {
+      // OpenAI compatible format
+      const response = await fetch(`${AI_API_URL}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${AI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          messages,
+          temperature: 0.1,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`AI API错误 (${response.status}): ${errorText}`);
+      }
+
+      const data = await response.json();
+      if (!data.choices || !data.choices[0]) {
+        throw new Error('AI API返回无效响应');
+      }
+      return data.choices[0].message.content;
     }
-    return data.choices[0].message.content;
   } catch (err) {
     console.error('AI API call error:', err);
     throw err;
